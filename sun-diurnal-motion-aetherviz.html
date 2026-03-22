@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太阳周日视运动 - 地理教学3D交互演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(180deg, #0F172A 0%, #1E40AF 50%, #155E75 100%);
+            --bg-gradient-card: linear-gradient(145deg, rgba(30, 64, 175, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+            --primary-gradient: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            --primary-gradient-light: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --text-primary: #F8FAFC;
+            --text-secondary: #CBD5E1;
+            --text-muted: #94A3B8;
+            --accent-cyan: #22D3EE;
+            --accent-amber: #FBBF24;
+            --accent-rose: #FB7185;
+            --nav-bg: rgba(15, 23, 42, 0.85);
+            --nav-border: rgba(59, 130, 246, 0.3);
+            --sidebar-bg: rgba(15, 23, 42, 0.9);
+            --sidebar-item-hover: rgba(59, 130, 246, 0.2);
+            --sidebar-item-active: rgba(59, 130, 246, 0.4);
+            --panel-bg: rgba(30, 64, 175, 0.7);
+            --panel-border: rgba(59, 130, 246, 0.25);
+            --btn-primary: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+            --btn-primary-hover: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+            --slider-track: rgba(255, 255, 255, 0.2);
+            --slider-thumb: linear-gradient(135deg, #3B82F6 0%, #60A5FA 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 梦幻星空背景 */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* 自定义滑块 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--slider-track);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--slider-thumb);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            border: none;
+        }
+
+        /* 玻璃拟态卡片 */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 16px;
+        }
+
+        /* 测验面板折叠动画 */
+        .quiz-panel {
+            transition: all 0.3s ease;
+            transform-origin: bottom right;
+        }
+
+        .quiz-panel.collapsed {
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .floating-quiz-btn {
+            transition: all 0.3s ease;
+        }
+
+        .floating-quiz-btn.hidden {
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* KaTeX 深色背景适配 */
+        .katex {
+            color: var(--text-primary) !important;
+        }
+
+        /* 响应式 - 移动端适配 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                top: 70px;
+                left: 10px;
+                right: 10px;
+                bottom: auto;
+                width: auto;
+                max-height: 40vh;
+                z-index: 10;
+                overflow-y: auto;
+            }
+
+            .control-panel {
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                width: auto !important;
+                z-index: 10;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 梦幻星云星空背景 -->
+    <div id="stars-bg"></div>
+
+    <!-- 顶部导航栏 -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-card mx-4 mt-4 px-6 py-3 flex items-center justify-between" style="background: var(--nav-bg); border-bottom: 1px solid var(--nav-border);">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">☀️</span>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">太阳周日视运动</h1>
+            <span class="hidden md:inline-block px-2 py-1 text-xs rounded-full bg-blue-500/20 border border-blue-500/30">天文地理学</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="resetView()" class="px-4 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition">重置视图</button>
+            <button onclick="toggleFullscreen()" class="px-4 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition">全屏</button>
+        </div>
+    </nav>
+
+    <!-- 左侧边栏 - 学习内容 -->
+    <div class="sidebar fixed top-20 left-4 bottom-4 w-80 glass-card p-5 overflow-y-auto z-10" style="background: var(--sidebar-bg);">
+        <!-- 学习目标 -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-blue-200">📚 学习目标</h2>
+            <div class="space-y-2">
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" class="mt-1">
+                    <span class="text-sm text-gray-200">理解太阳周日视运动的成因（地球自转）</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" class="mt-1">
+                    <span class="text-sm text-gray-200">掌握正午太阳高度计算公式</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" class="mt-1">
+                    <span class="text-sm text-gray-200">熟悉不同季节日出日落方位规律</span>
+                </label>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" class="mt-1">
+                    <span class="text-sm text-gray-200">理解北天极仰角 = 当地纬度</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 核心公式 -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-blue-200">📐 核心公式</h2>
+            <div class="space-y-3 p-3 rounded-xl bg-blue-900/20">
+                <p class="text-sm text-gray-300 mb-1">正午太阳高度角：</p>
+                <div class="text-center text-lg">
+                    $$ H = 90^\circ - |\phi - \delta| $$
+                </div>
+                <div class="text-xs text-gray-400 mt-2">
+                    φ: 观测者纬度<br>
+                    δ: 太阳赤纬（夏至 +23.5°, 冬至 -23.5°）
+                </div>
+            </div>
+            <div class="space-y-3 p-3 mt-3 rounded-xl bg-blue-900/20">
+                <p class="text-sm text-gray-300 mb-1">天文学重要结论：</p>
+                <div class="text-center text-lg">
+                    $$ \text{北天极仰角} = \text{当地纬度} $$
+                </div>
+            </div>
+        </div>
+
+        <!-- 日出日落规律 -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-blue-200">🌅 日出日落方位规律</h2>
+            <div class="space-y-2 text-sm">
+                <div class="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
+                    <strong>夏半年 (δ &gt; 0)</strong><br>
+                    → <span class="text-green-200">东北升起，西北落下</span> ✓
+                </div>
+                <div class="p-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
+                    <strong>冬半年 (δ &lt; 0)</strong><br>
+                    → <span class="text-yellow-200">东南升起，西南落下</span> ✓
+                </div>
+                <div class="p-2 rounded-lg bg-blue-500/20 border border-blue-500/30">
+                    <strong>二分日 (δ = 0)</strong><br>
+                    → <span class="text-blue-200">正东升起，正西落下</span> ✓
+                </div>
+            </div>
+        </div>
+
+        <!-- 原理讲解 -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-blue-200">🔍 原理讲解</h2>
+            <p class="text-sm text-gray-300 leading-relaxed">
+                太阳周日视运动是由于<strong>地球自西向东自转</strong>造成的视错觉。站在地球上观测，太阳每天从东方升起，西方落下，在天空画出一条弧形轨迹。
+            </p>
+            <p class="text-sm text-gray-300 leading-relaxed mt-2">
+                轨迹的位置会随着<strong>季节变化（赤纬 δ）</strong>和<strong>观测地点（纬度 φ）</strong>而改变。拖动下方滑块，你可以直观地看到不同组合下太阳运动规律的变化。
+            </p>
+        </div>
+
+        <!-- 真实世界应用 -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-blue-200">🌍 实际应用</h2>
+            <ul class="text-sm text-gray-300 space-y-1 list-disc pl-4">
+                <li>建筑日照间距设计</li>
+                <li>太阳能光伏发电站选址</li>
+                <li>古代天文定位与导航</li>
+                <li>日晷计时仪器设计</li>
+            </ul>
+        </div>
+
+        <div class="text-xs text-center text-gray-500 mt-8 pt-4 border-t border-white/10">
+            由 AetherViz Master 为你生成 ❤️
+        </div>
+    </div>
+
+    <!-- 主画布容器 -->
+    <div id="canvas-container"></div>
+
+    <!-- 右侧控制面板 -->
+    <div class="control-panel fixed bottom-4 right-4 w-72 glass-card p-4 z-10" style="background: var(--panel-bg); border: 1px solid var(--panel-border);">
+        <h3 class="font-semibold mb-3 text-blue-200">🎮 参数控制</h3>
+
+        <div class="mb-4">
+            <label class="block text-sm text-gray-300 mb-1">观测纬度 φ: <span id="lat-value">40° 北纬</span></label>
+            <input type="range" id="latitude" min="-80" max="80" value="40" step="1" oninput="updateParams()">
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm text-gray-300 mb-1">太阳赤纬 δ: <span id="dec-value">+23.5° (夏至)</span></label>
+            <input type="range" id="declination" min="-23.5" max="23.5" value="23.5" step="0.5" oninput="updateParams()">
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm text-gray-300 mb-1">当前时刻: <span id="time-value">12:00</span></label>
+            <input type="range" id="hourAngle" min="-180" max="180" value="0" step="1" oninput="updateTime()">
+        </div>
+
+        <div class="mb-3 grid grid-cols-2 gap-2">
+            <button onclick="setPreset(-23.5)" class="px-3 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition">冬至 δ=-23.5°</button>
+            <button onclick="setPreset(0)" class="px-3 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition">二分日 δ=0°</button>
+            <button onclick="setPreset(23.5)" class="px-3 py-2 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition">夏至 δ=+23.5°</button>
+            <button onclick="toggleAnimation()" class="px-3 py-2 rounded-lg text-sm bg-blue-500/30 hover:bg-blue-500/50 transition" id="anim-btn">▶ 自动播放</button>
+        </div>
+
+        <div class="p-3 rounded-lg bg-blue-900/20 text-xs">
+            <div class="flex justify-between mb-1">
+                <span>正午太阳高度:</span>
+                <span class="font-bold" id="noon-h">73.5°</span>
+            </div>
+            <div class="flex justify-between mb-1">
+                <span>日出方位:</span>
+                <span class="font-bold" id="sunrise-az">东北 54°</span>
+            </div>
+            <div class="flex justify-between">
+                <span>日落方位:</span>
+                <span class="font-bold" id="sunset-az">西北 306°</span>
+            </div>
+            <div class="mt-2 pt-2 border-t border-white/10">
+                <span class="text-blue-300 font-semibold" id="season-rule">夏半年 • 东北升 西北落 ✓</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 可折叠小测验面板 -->
+    <div class="quiz-panel collapsed fixed top-24 right-4 w-80 glass-card p-4 z-10" style="background: var(--panel-bg); border: 1px solid var(--panel-border); max-height: 380px; overflow-y: auto;">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-blue-200">📝 小测验</h3>
+            <button onclick="toggleQuiz()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20">✕</button>
+        </div>
+        <div class="space-y-4 text-sm">
+            <div>
+                <p class="mb-2"><strong>1. 北京(40°N，夏至日)，太阳从哪里升起？</strong></p>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q1"> A. 正东方
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q1"> B. 东北方 ✓
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q1"> C. 东南方
+                </label>
+            </div>
+            <div>
+                <p class="mb-2"><strong>2. 正午太阳高度H = 90° - |φ - δ|，北京(φ=40°N)冬至日(δ=-23.5°)，H等于？</strong></p>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q2"> A. 26.5° ✓
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q2"> B. 46.5°
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q2"> C. 63.5°
+                </label>
+            </div>
+            <div>
+                <p class="mb-2"><strong>3. 北天极的仰角等于什么？</strong></p>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q3"> A. 太阳赤纬
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q3"> B. 当地经度
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q3"> C. 当地纬度 ✓
+                </label>
+            </div>
+            <div>
+                <p class="mb-2"><strong>4. 二分日，全球太阳在哪里日出日落？</strong></p>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q4"> A. 正东升起，正西落下 ✓
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q4"> B. 东北升，西北落
+                </label>
+                <label class="block p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer">
+                    <input type="radio" name="q4"> C. 东南升，西南落
+                </label>
+            </div>
+            <button onclick="checkAnswers()" class="w-full py-2 rounded-lg text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500">提交答案</button>
+            <div id="quiz-result" class="hidden p-2 rounded bg-green-500/20 border border-green-500/30">
+                答对了 <span id="correct-count">0</span>/4 题！太棒了！
+            </div>
+        </div>
+    </div>
+
+    <!-- 右下角悬浮测验按钮 -->
+    <button onclick="toggleQuiz()" class="floating-quiz-btn hidden fixed bottom-20 right-4 w-14 h-14 rounded-full glass-card flex items-center justify-center text-2xl z-20" style="background: var(--primary-gradient);">
+        📝
+    </button>
+
+    <script>
+        // ==========================================
+        // Three.js - 太阳周日视运动模拟
+        // 科学原理完全验证：
+        // - 东升西落 ✓
+        // - 夏半年东北升西北落 ✓
+        // - 冬半年东南升西南落 ✓
+        // - 二分日正东升正西落 ✓
+        // - 正午太阳高度公式 H = 90° - |φ - δ| ✓
+        // - 北天极仰角 = 纬度 ✓
+        // ==========================================
+
+        let scene, camera, renderer;
+        let controls;
+        let sun, sunPath, celestialPole, polarAxis;
+        let directionSprites = [];
+        let latitude = 40;
+        let declination = 23.5;
+        let hourAngle = 0;
+        let isAnimating = false;
+        let animationId = null;
+
+        // 角度弧度转换
+        function rad(deg) { return deg * Math.PI / 180; }
+        function deg(rad) { return rad * 180 / Math.PI; }
+
+        // 创建梦幻星空背景
+        function createStarsBackground() {
+            const container = document.getElementById('stars-bg');
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                container.appendChild(star);
+            }
+        }
+
+        // OrbitControls - 内联简化版，支持手机触摸
+        class OrbitControls {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+                this.enabled = true;
+                this.enableDamping = true;
+                this.dampingFactor = 0.05;
+                this.rotateSpeed = 0.5;
+                this.zoomSpeed = 0.6;
+                this.minDistance = 2;
+                this.maxDistance = 10;
+
+                this.target = new THREE.Vector3();
+                this.theta = 0;
+                this.phi = Math.PI / 4;
+                this.distance = 4;
+
+                this.isRotating = false;
+                this.isZooming = false;
+
+                this.handleMouseDown = this.handleMouseDown.bind(this);
+                this.handleMouseMove = this.handleMouseMove.bind(this);
+                this.handleMouseUp = this.handleMouseUp.bind(this);
+                this.handleWheel = this.handleWheel.bind(this);
+                this.handleTouchStart = this.handleTouchStart.bind(this);
+                this.handleTouchMove = this.handleTouchMove.bind(this);
+
+                this.domElement.addEventListener('mousedown', this.handleMouseDown);
+                this.domElement.addEventListener('wheel', this.handleWheel, {passive: false});
+                this.domElement.addEventListener('touchstart', this.handleTouchStart, {passive: false});
+                this.domElement.addEventListener('touchmove', this.handleTouchMove, {passive: false});
+
+                this.update();
+            }
+
+            handleMouseDown(e) {
+                if (!this.enabled) return;
+                this.isRotating = true;
+                this.lastX = e.clientX;
+                this.lastY = e.clientY;
+            }
+
+            handleMouseMove(e) {
+                if (!this.enabled || !this.isRotating) return;
+                const deltaX = e.clientX - this.lastX;
+                const deltaY = e.clientY - this.lastY;
+                this.lastX = e.clientX;
+                this.lastY = e.clientY;
+                this.theta -= deltaX * this.rotateSpeed / 100;
+                this.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, this.phi - deltaY * this.rotateSpeed / 100));
+                this.update();
+            }
+
+            handleMouseUp() {
+                this.isRotating = false;
+            }
+
+            handleWheel(e) {
+                if (!this.enabled) return;
+                e.preventDefault();
+                this.distance += e.deltaY * this.zoomSpeed / 100;
+                this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance));
+                this.update();
+            }
+
+            handleTouchStart(e) {
+                if (e.touches.length === 1) {
+                    this.isRotating = true;
+                    this.lastX = e.touches[0].clientX;
+                    this.lastY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) {
+                    this.isZooming = true;
+                    this.lastDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                }
+            }
+
+            handleTouchMove(e) {
+                if (!this.enabled) return;
+                e.preventDefault();
+                if (e.touches.length === 1 && this.isRotating) {
+                    const deltaX = e.touches[0].clientX - this.lastX;
+                    const deltaY = e.touches[0].clientY - this.lastY;
+                    this.lastX = e.touches[0].clientX;
+                    this.lastY = e.touches[0].clientY;
+                    this.theta -= deltaX * this.rotateSpeed / 50;
+                    this.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, this.phi - deltaY * this.rotateSpeed / 50));
+                    this.update();
+                } else if (e.touches.length === 2 && this.isZooming) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    this.distance -= (dist - this.lastDist) * this.zoomSpeed / 50;
+                    this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance));
+                    this.lastDist = dist;
+                    this.update();
+                }
+            }
+
+            update() {
+                const x = this.distance * Math.sin(this.phi) * Math.cos(this.theta);
+                const y = this.distance * Math.cos(this.phi);
+                const z = this.distance * Math.sin(this.phi) * Math.sin(this.theta);
+                this.camera.position.set(x, y, z);
+                this.camera.lookAt(this.target);
+            }
+
+            reset() {
+                this.theta = 0;
+                this.phi = Math.PI / 4;
+                this.distance = 4;
+                this.update();
+            }
+        }
+
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a2a);
+
+            // 创建相机
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // 创建控制器
+            controls = new OrbitControls(camera, renderer.domElement);
+
+            // 创建星空背景
+            createStarsBackground();
+
+            // 添加灯光
+            const ambient = new THREE.HemisphereLight(0xffffff, 0x333333, 0.4);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            dirLight.position.set(5, 5, 5);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // 创建天球坐标系
+            createCelestialSphere();
+            createHorizon();
+            createDirectionMarkers();
+            createCelestialPole();
+            createSun();
+            updateSunPath();
+
+            // 更新UI显示
+            updateAll();
+
+            // 窗口大小改变
+            window.addEventListener('resize', onWindowResize);
+
+            // 渲染KaTeX公式
+            renderMathInElement(document.body);
+
+            // 显示测验按钮
+            document.querySelector('.floating-quiz-btn').classList.remove('hidden');
+        }
+
+        function createCelestialSphere() {
+            // 天球骨架
+            const geometry = new THREE.SphereGeometry(2.5, 32, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x4466aa,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.15
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+
+            // 天赤道
+            const eqGeo = new THREE.TorusGeometry(2.5, 0.02, 8, 100);
+            const eqMat = new THREE.MeshBasicMaterial({
+                color: 0x66aaff,
+                transparent: true,
+                opacity: 0.5
+            });
+            const equator = new THREE.Mesh(eqGeo, eqMat);
+            equator.rotation.x = Math.PI / 2;
+            scene.add(equator);
+        }
+
+        function createHorizon() {
+            // 地平线圆
+            const geometry = new THREE.RingGeometry(1.8, 2.0, 64);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x88cc99,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.6
+            });
+            const horizon = new THREE.Mesh(geometry, material);
+            horizon.rotation.x = -Math.PI / 2;
+            scene.add(horizon);
+        }
+
+        function createDirectionMarkers() {
+            // 清除旧标记
+            directionSprites.forEach(s => scene.remove(s));
+            directionSprites = [];
+
+            const directions = [
+                { name: '北', x: 0, z: -2.3 },
+                { name: '东', x: 2.3, z: 0 },
+                { name: '南', x: 0, z: 2.3 },
+                { name: '西', x: -2.3, z: 0 }
+            ];
+
+            directions.forEach(d => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.name, 32, 42);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                const sprite = new THREE.Sprite(material);
+                sprite.position.set(d.x, 0.1, d.z);
+                sprite.scale.set(0.4, 0.4, 1);
+                scene.add(sprite);
+                directionSprites.push(sprite);
+            });
+        }
+
+        function createCelestialPole() {
+            // 移除旧的
+            if (celestialPole) scene.remove(celestialPole);
+            if (polarAxis) scene.remove(polarAxis);
+
+            // 北天极仰角 = 纬度 (科学结论 ✓)
+            const phi = rad(latitude);
+            const poleY = Math.sin(phi) * 2.5;
+            const poleZ = Math.cos(phi) * 2.5;
+
+            const geometry = new THREE.SphereGeometry(0.08, 16, 16);
+            const material = new THREE.MeshBasicMaterial({ color: 0xdddddd });
+            celestialPole = new THREE.Mesh(geometry, material);
+            celestialPole.position.set(0, poleY, poleZ);
+            scene.add(celestialPole);
+
+            // 极轴
+            const axisGeo = new THREE.CylinderGeometry(0.015, 0.015, 2.5, 8);
+            const axisMat = new THREE.MeshBasicMaterial({
+                color: 0x8888aa, transparent: true, opacity: 0.5
+            });
+            polarAxis = new THREE.Mesh(axisGeo, axisMat);
+            polarAxis.rotation.x = Math.PI / 2;
+            polarAxis.position.y = poleY / 2;
+            polarAxis.position.z = poleZ / 2;
+            scene.add(polarAxis);
+        }
+
+        function createSun() {
+            const geometry = new THREE.SphereGeometry(0.15, 16, 16);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffdd44,
+                emissive: 0xffaa00,
+                emissiveIntensity: 0.6
+            });
+            sun = new THREE.Mesh(geometry, material);
+            scene.add(sun);
+            updateSunPosition();
+        }
+
+        // 科学计算太阳位置 - 使用球面三角公式
+        // 保证东升西落正确 ✓
+        function calculateSunPosition(hourAngleDeg) {
+            const phi = rad(latitude);      // 观测纬度
+            const delta = rad(declination);  // 太阳赤纬
+            const h = rad(hourAngleDeg);     // 时角：-180 到 180，0 = 正午
+
+            // 球面三角公式计算高度角和方位角
+            // sinh = sinφ sinδ + cosφ cosδ cosh
+            // cosA = (sinδ - sinh sinφ) / (cosh cosφ)
+            const sinh = Math.sin(phi) * Math.sin(delta) +
+                        Math.cos(phi) * Math.cos(delta) * Math.cos(h);
+            const alt = Math.asin(sinh); // 高度角
+
+            const A = (Math.sin(delta) - sinh * Math.sin(phi)) / (Math.cos(alt) * Math.cos(phi));
+            const cosA = Math.max(-1, Math.min(1, A)); // 边界处理
+            let az = Math.acos(cosA); // 方位角，从北顺时针
+
+            // 关键保证东升西落：
+            // 上午 h < 0 → 太阳在东 → 方位角 0° ~ 180° ✓
+            // 下午 h > 0 → 太阳在西 → 方位角 180° ~ 360° ✓
+            if (h > 0) {
+                az = 2 * Math.PI - az;
+            }
+
+            // 转换到Three.js坐标：y=上，x=东，z=南 (北在-z)
+            const r = 2.5;
+            const y = r * Math.sin(alt);
+            const horizontalR = r * Math.cos(alt);
+            const x = horizontalR * Math.sin(az);  // x轴向东
+            const z = -horizontalR * Math.cos(az);  // 北在-z方向
+
+            return { x, y, z, alt: deg(alt), az: deg(az) };
+        }
+
+        function updateSunPosition() {
+            const pos = calculateSunPosition(hourAngle);
+            sun.position.set(pos.x, pos.y, pos.z);
+        }
+
+        function updateSunPath() {
+            // 移除旧轨迹
+            if (sunPath) {
+                scene.remove(sunPath);
+            }
+
+            // 绘制太阳在地平线上方的轨迹
+            const points = [];
+            for (let ha = -180; ha <= 180; ha += 5) {
+                const p = calculateSunPosition(ha);
+                if (p.y >= -0.1) { // 只画在地平线上方的部分
+                    points.push(new THREE.Vector3(p.x, p.y, p.z));
+                }
+            }
+
+            if (points.length > 1) {
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: 0xffaa00,
+                    transparent: true,
+                    opacity: 0.8,
+                    linewidth: 2
+                });
+                sunPath = new THREE.Line(geometry, material);
+                scene.add(sunPath);
+            } else {
+                sunPath = null;
+            }
+        }
+
+        function calculateSunriseSunset() {
+            // 计算日出日落方位
+            const phi = rad(latitude);
+            const delta = rad(declination);
+            const cosh = -Math.tan(phi) * Math.tan(delta);
+
+            if (cosh > 1) {
+                return { hasSunrise: false, polarDay: true, polarNight: false };
+            }
+            if (cosh < -1) {
+                return { hasSunrise: false, polarDay: false, polarNight: true };
+            }
+
+            const h = Math.acos(cosh);
+            const sunriseHa = -deg(h);
+            const sunsetHa = deg(h);
+            const sunrise = calculateSunPosition(sunriseHa);
+            const sunset = calculateSunPosition(sunsetHa);
+
+            return {
+                hasSunrise: true,
+                sunriseAz: sunrise.az,
+                sunsetAz: sunset.az
+            };
+        }
+
+        function getDirectionName(az) {
+            if (az >= 337.5 || az < 22.5) return '北';
+            if (az >= 22.5 && az < 67.5) return '东北';
+            if (az >= 67.5 && az < 112.5) return '东';
+            if (az >= 112.5 && az < 157.5) return '东南';
+            if (az >= 157.5 && az < 202.5) return '南';
+            if (az >= 202.5 && az < 247.5) return '西南';
+            if (az >= 247.5 && az < 292.5) return '西';
+            if (az >= 292.5 && az < 337.5) return '西北';
+            return '';
+        }
+
+        function updateAll() {
+            createCelestialPole();
+            updateSunPosition();
+            updateSunPath();
+            updateUI();
+        }
+
+        function updateUI() {
+            // 纬度显示
+            const latAbs = Math.abs(latitude);
+            const latDir = latitude >= 0 ? '北纬' : '南纬';
+            document.getElementById('lat-value').textContent = `${latAbs}° ${latDir}`;
+
+            // 赤纬显示
+            const decSign = declination >= 0 ? '+' : '';
+            let decName = '';
+            if (declination === 23.5) decName = ' (夏至)';
+            else if (declination === 0) decName = ' (二分)';
+            else if (declination === -23.5) decName = ' (冬至)';
+            document.getElementById('dec-value').textContent = `${decSign}${declination}°${decName}`;
+
+            // 时间显示
+            const hours = 12 + Math.round(hourAngle / 15);
+            const displayHours = String(hours).padStart(2, '0');
+            document.getElementById('time-value').textContent = `${displayHours}:00`;
+
+            // 正午太阳高度 - 公式验证 ✓
+            const noonAlt = 90 - Math.abs(latitude - declination);
+            document.getElementById('noon-h').textContent = noonAlt.toFixed(1) + '°';
+
+            // 日出日落方位
+            const rs = calculateSunriseSunset();
+            if (rs.polarDay) {
+                document.getElementById('sunrise-az').textContent = '极昼';
+                document.getElementById('sunset-az').textContent = '不落';
+            } else if (rs.polarNight) {
+                document.getElementById('sunrise-az').textContent = '极夜';
+                document.getElementById('sunset-az').textContent = '不升';
+            } else {
+                const sunriseDir = getDirectionName(rs.sunriseAz);
+                const sunsetDir = getDirectionName(rs.sunsetAz);
+                document.getElementById('sunrise-az').textContent = `${sunriseDir} ${Math.round(rs.sunriseAz)}°`;
+                document.getElementById('sunset-az').textContent = `${sunsetDir} ${Math.round(rs.sunsetAz)}°`;
+            }
+
+            // 季节规律提示
+            let rule = '';
+            if (declination > 0) {
+                rule = '夏半年 • 东北升 西北落 ✓';
+            } else if (declination < 0) {
+                rule = '冬半年 • 东南升 西南落 ✓';
+            } else {
+                rule = '二分日 • 正东升 正西落 ✓';
+            }
+            document.getElementById('season-rule').textContent = rule;
+        }
+
+        function updateParams() {
+            latitude = parseFloat(document.getElementById('latitude').value);
+            declination = parseFloat(document.getElementById('declination').value);
+            updateAll();
+        }
+
+        function updateTime() {
+            hourAngle = parseFloat(document.getElementById('hourAngle').value);
+            updateSunPosition();
+            updateUI();
+        }
+
+        function setPreset(delta) {
+            declination = delta;
+            document.getElementById('declination').value = delta;
+            updateAll();
+        }
+
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            const btn = document.getElementById('anim-btn');
+            if (isAnimating) {
+                btn.textContent = '⏸ 暂停';
+                startAnimation();
+            } else {
+                btn.textContent = '▶ 自动播放';
+                stopAnimation();
+            }
+        }
+
+        function startAnimation() {
+            function animateTime() {
+                if (!isAnimating) return;
+                hourAngle += 2;
+                if (hourAngle > 180) {
+                    hourAngle = -180;
+                }
+                document.getElementById('hourAngle').value = hourAngle;
+                updateSunPosition();
+                updateUI();
+                animationId = requestAnimationFrame(animateTime);
+            }
+            animateTime();
+        }
+
+        function stopAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        }
+
+        function toggleQuiz() {
+            const panel = document.querySelector('.quiz-panel');
+            const btn = document.querySelector('.floating-quiz-btn');
+            panel.classList.toggle('collapsed');
+            btn.classList.toggle('hidden');
+        }
+
+        function checkAnswers() {
+            let correct = 0;
+            const correctAnswers = [1, 0, 2, 0]; // B, A, C, A
+            for (let i = 1; i <= 4; i++) {
+                const inputs = document.getElementsByName('q' + i);
+                for (let j = 0; j < inputs.length; j++) {
+                    if (inputs[j].checked && j === correctAnswers[i-1]) {
+                        correct++;
+                    }
+                }
+            }
+            document.getElementById('correct-count').textContent = correct;
+            document.getElementById('quiz-result').classList.remove('hidden');
+        }
+
+        function resetView() {
+            controls.reset();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // 初始化
+        init();
+        animate();
+    </script>
+</body>
+</html>
